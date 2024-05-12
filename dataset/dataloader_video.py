@@ -9,6 +9,10 @@ import torch
 import random
 import pandas
 import warnings
+import pandas as pd
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -19,16 +23,16 @@ import torch.utils.data as data
 from utils import video_augmentation
 from torch.utils.data.sampler import Sampler
 
+
 sys.path.append("..")
 global kernel_sizes 
 
 class BaseFeeder(data.Dataset):
     def __init__(self, prefix, gloss_dict, dataset='phoenix2014', drop_ratio=1, num_gloss=-1, mode="train", transform_mode=True,
-                 datatype="lmdb", frame_interval=1, image_scale=1.0, kernel_size=1, input_size=224):
+                 datatype="video", frame_interval=1, image_scale=1.0, kernel_size=1, input_size=224):
         self.mode = mode
         self.ng = num_gloss
         self.prefix = prefix
-        self.dict = gloss_dict
         self.data_type = datatype
         self.dataset = dataset
         self.input_size = input_size
@@ -38,11 +42,15 @@ class BaseFeeder(data.Dataset):
         self.image_scale = image_scale # not implemented for read_features()
         self.feat_prefix = f"{prefix}/features/fullFrame-256x256px/{mode}"
         self.transform_mode = "train" if transform_mode else "test"
-        self.inputs_list = np.load(f"./preprocess/{dataset}/{mode}_info.npy", allow_pickle=True).item()
+        self.inputs_list = np.load("../preprocess/ISLdata.npy", allow_pickle=True)
+        print(self.inputs_list)
         print(mode, len(self))
         self.data_aug = self.transform()
         print("")
 
+    
+
+        
     def __getitem__(self, idx):
         if self.data_type == "video":
             input_data, label, fi = self.read_video(idx)
@@ -56,16 +64,46 @@ class BaseFeeder(data.Dataset):
         else:
             input_data, label = self.read_features(idx)
             return input_data, label, self.inputs_list[idx]['original_info']
-
+        
+    
+    def conv_video_to_frame(self,video_path):
+        video_capture = cv2.VideoCapture(video_path)
+        success=True
+        base_options = python.BaseOptions(model_asset_path='pose_landmarker.task')
+        options = vision.PoseLandmarkerOptions(
+            base_options=base_options,
+            output_segmentation_masks=True)
+        detector = vision.PoseLandmarker.create_from_options(options)
+        annotated_frames=[]
+        while success:
+            success,frame = video_capture.read()
+            if frame is not None:
+                frame = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
+                detection_result = detector.detect(frame)
+                annotated_frame = draw_landmarks_on_image(frame.numpy_view(), detection_result)
+                annotated_frames.append(annotated_frame)
+            
+            video_capture.release()
+            cv2.destroyAllWindows()
+        return annotated_frames
+    
     def read_video(self, index):
         # load file info
-        fi = self.inputs_list[index]
+        fi = self.inputs_list[index] #fi=['0' 'GIx57eZ4R0M--0' 'Last Monday for Saturdays']
         if 'phoenix' in self.dataset:
             img_folder = os.path.join(self.prefix, "features/fullFrame-256x256px/" + fi['folder'])  
         elif self.dataset == 'CSL':
             img_folder = os.path.join(self.prefix, "features/fullFrame-256x256px/" + fi['folder'] + "/*.jpg")
         elif self.dataset == 'CSL-Daily':
             img_folder = os.path.join(self.prefix, fi['folder'])
+        elif self.dataset == 'ISL':
+            img_list=[]
+            for vid in os.listdir("../preprocess/ISL"):
+                img_list.append(self.conv_video_to_frame(os.path.join("SlowFastSignISL/preprocess/ISL", vid)))
+                img_list = img_list[int(torch.randint(0, self.frame_interval, [1]))::self.frame_interval]
+                print(vid)
+            return [cv2.cvtColor(cv2.resize(cv2.imread(img_path)[40:, ...], (256, 256)), cv2.COLOR_BGR2RGB) for img_path in img_list], label_list, fi
+
         img_list = sorted(glob.glob(img_folder))
         img_list = img_list[int(torch.randint(0, self.frame_interval, [1]))::self.frame_interval]
         label_list = []
@@ -186,13 +224,26 @@ class BaseFeeder(data.Dataset):
         self.record_time()
         return split_time
 
-
+def labels_to_d(csv):
+        d={}
+        df=pd.read_csv(csv)
+        df=df.dropna(axis=0)
+        count=0
+        for label in df['text']:
+            words=label.split(" ")
+            for word in words:
+                if word not in d.keys():
+                    d[word] = count
+                count+=1
+        return d
 if __name__ == "__main__":
-    gloss_dict = np.load('./preprocess/phoenix2014/gloss_dict.npy', allow_pickle=True).item()
+    gloss_dict=labels_to_d("../preprocess/ISLCleaned.csv")
+    #gloss_dict = np.load('../preprocess/phoenix2014/gloss_dict.npy', allow_pickle=True).item()
+    #print(gloss_dict)
     feeder = BaseFeeder(
         prefix='./dataset/phoenix2014/phoenix-2014-multisigner',
         gloss_dict=gloss_dict,
-        dataset='phoenix2014',
+        dataset='ISL',
         datatype='video',
         kernel_size = ['K5','P2','K5','P2']
         )
