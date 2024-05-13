@@ -261,7 +261,8 @@ def import_class(name):
 if __name__ == '__main__':
     sparser = utils.get_parser()
     p = sparser.parse_args()
-    # p.config = "baseline_iter.yaml"
+    p.config = f"/content/SlowFastSignISL/configs/baseline.yaml"
+    print(p)
     if p.config is not None:
         with open(p.config, 'r') as f:
             try:
@@ -275,8 +276,11 @@ if __name__ == '__main__':
                 assert (k in key)
         sparser.set_defaults(**default_arg)
     args = sparser.parse_args()
-    with open(f"./configs/{args.dataset}.yaml", 'r') as f:
+    
+    with open(p.config, 'r') as f:
         args.dataset_info = yaml.load(f, Loader=yaml.FullLoader)
+    print(args)
+    args.config=p.config
     processor = Processor(args)
     #utils.pack_code("./", args.work_dir)
     processor.start()
