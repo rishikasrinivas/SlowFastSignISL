@@ -10,9 +10,9 @@ import random
 import pandas
 import warnings
 import pandas as pd
-import mediapipe as mp
-from mediapipe.tasks import python
-from mediapipe.tasks.python import vision
+#import mediapipe as mp
+#from mediapipe.tasks import python
+#from mediapipe.tasks.python import vision
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -31,6 +31,7 @@ class BaseFeeder(data.Dataset):
     def __init__(self, prefix, gloss_dict, dataset='phoenix2014', drop_ratio=1, num_gloss=-1, mode="train", transform_mode=True,
                  datatype="video", frame_interval=1, image_scale=1.0, kernel_size=1, input_size=224):
         self.mode = mode
+  
         self.ng = num_gloss
         self.prefix = prefix
         self.data_type = datatype
@@ -42,11 +43,17 @@ class BaseFeeder(data.Dataset):
         self.image_scale = image_scale # not implemented for read_features()
         self.feat_prefix = f"{prefix}/features/fullFrame-256x256px/{mode}"
         self.transform_mode = "train" if transform_mode else "test"
-        self.inputs_list = np.load("../preprocess/ISLdata.npy", allow_pickle=True)
-        print(self.inputs_list)
+        self.inputs_list = np.load("/content/SlowFastSignISL/preprocess/ISLData/ISLdata.npy", allow_pickle=True)
+        #self.inputs_list = np.load(f"/content/SlowFastSignISL/preprocess/phoenix2014/train_info.npy", allow_pickle=True).item()
+        self.d =gloss_dict
+        self.inputs_list=sorted(self.inputs_list, key=lambda x: x[1])
+        print(self.inputs_list[0])
         print(mode, len(self))
         self.data_aug = self.transform()
-        print("")
+        self.vids_list=os.listdir("/content/SlowFastSignISL/preprocess/ISLData/ISL")
+      
+        self.vids_list=sorted(self.vids_list)
+       
 
     
 
@@ -98,10 +105,14 @@ class BaseFeeder(data.Dataset):
             img_folder = os.path.join(self.prefix, fi['folder'])
         elif self.dataset == 'ISL':
             img_list=[]
-            for vid in os.listdir("../preprocess/ISL"):
-                img_list.append(self.conv_video_to_frame(os.path.join("SlowFastSignISL/preprocess/ISL", vid)))
-                img_list = img_list[int(torch.randint(0, self.frame_interval, [1]))::self.frame_interval]
-                print(vid)
+            video_file=self.vids_list[index]
+            img_list.append(self.conv_video_to_frame(os.path.join("SlowFastSignISL/preprocess/ISL", video_file)))
+            img_list = img_list[int(torch.randint(0, self.frame_interval, [1]))::self.frame_interval]
+            
+            transl=fi[2]
+            label_list=[self.d[word] for word in transl.split(" ")]
+            print(label_list, transl)
+
             return [cv2.cvtColor(cv2.resize(cv2.imread(img_path)[40:, ...], (256, 256)), cv2.COLOR_BGR2RGB) for img_path in img_list], label_list, fi
 
         img_list = sorted(glob.glob(img_folder))
@@ -121,6 +132,7 @@ class BaseFeeder(data.Dataset):
         # load file info
         fi = self.inputs_list[index]
         data = np.load(f"./features/{self.mode}/{fi['fileid']}_features.npy", allow_pickle=True).item()
+
         return data['features'], data['label']
 
     def normalize(self, video, label, file_id=None):
@@ -236,9 +248,9 @@ def labels_to_d(csv):
                     d[word] = count
                 count+=1
         return d
-if __name__ == "__main__":
-    gloss_dict=labels_to_d("../preprocess/ISLCleaned.csv")
-    #gloss_dict = np.load('../preprocess/phoenix2014/gloss_dict.npy', allow_pickle=True).item()
+def main():
+    gloss_dict=labels_to_d("/content/SlowFastSignISL/preprocess/ISLData/ISLCleaned.csv")
+    #gloss_dict = np.load('/content/SlowFastSignISL/preprocess/phoenix2014/gloss_dict.npy', allow_pickle=True).item()
     #print(gloss_dict)
     feeder = BaseFeeder(
         prefix='./dataset/phoenix2014/phoenix-2014-multisigner',
@@ -247,6 +259,7 @@ if __name__ == "__main__":
         datatype='video',
         kernel_size = ['K5','P2','K5','P2']
         )
+
     dataloader = torch.utils.data.DataLoader(
         dataset=feeder,
         batch_size=1,
@@ -257,3 +270,4 @@ if __name__ == "__main__":
     )
     for data in dataloader:
         pdb.set_trace()
+main()
