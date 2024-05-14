@@ -91,6 +91,7 @@ class BaseFeeder(data.Dataset):
     
     def read_video(self, index):
         # load file info
+
         fi = self.inputs_list[index] #fi=['0' 'GIx57eZ4R0M--0' 'Last Monday for Saturdays']
         if 'phoenix' in self.dataset:
             img_folder = os.path.join(self.prefix, "features/fullFrame-256x256px/" + fi['folder'])  
@@ -103,7 +104,8 @@ class BaseFeeder(data.Dataset):
             video_file=self.vids_list[index]
             print(video_file)
             img_list = self.conv_video_to_frame("/content/SlowFastSignISL/preprocess/ISLData/ISLVideos/"+ video_file)
-            print(img_list[0].shape)
+            if len(img_list) == 0:
+              print(video_file)
             selected_frames=[]
             for i in range(0, len(img_list[0]), self.frame_interval):
               selected_frames.append(img_list[0][i])
@@ -267,6 +269,7 @@ def main():
         num_workers=0,
         collate_fn=feeder.collate_fn,
     )
-    for data in dataloader:
-        pdb.set_trace()
+    for i,data in enumerate(dataloader):
+        print(i)
+        #pdb.set_trace()
 main()
