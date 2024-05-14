@@ -10,9 +10,9 @@ import random
 import pandas
 import warnings
 import pandas as pd
-#import mediapipe as mp
-#from mediapipe.tasks import python
-#from mediapipe.tasks.python import vision
+import mediapipe as mp
+from mediapipe.tasks import python
+from mediapipe.tasks.python import vision
 sys.path.append(os.path.dirname(os.path.abspath(os.path.dirname(__file__))))
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
@@ -28,6 +28,7 @@ sys.path.append("..")
 global kernel_sizes 
 
 class BaseFeeder(data.Dataset):
+  
     def __init__(self, prefix, gloss_dict, dataset='phoenix2014', drop_ratio=1, num_gloss=-1, mode="train", transform_mode=True,
                  datatype="video", frame_interval=1, image_scale=1.0, kernel_size=1, input_size=224):
         self.mode = mode
@@ -39,31 +40,33 @@ class BaseFeeder(data.Dataset):
         self.input_size = input_size
         global kernel_sizes 
         kernel_sizes = kernel_size
-        self.frame_interval = frame_interval # not implemented for read_features()
+        self.frame_interval = 16 # not implemented for read_features()
         self.image_scale = image_scale # not implemented for read_features()
         self.feat_prefix = f"{prefix}/features/fullFrame-256x256px/{mode}"
         self.transform_mode = "train" if transform_mode else "test"
         self.inputs_list = np.load("/content/SlowFastSignISL/preprocess/ISLData/ISLdata.npy", allow_pickle=True)
         #self.inputs_list = np.load(f"/content/SlowFastSignISL/preprocess/phoenix2014/train_info.npy", allow_pickle=True).item()
+     
         self.d =gloss_dict
         self.inputs_list=sorted(self.inputs_list, key=lambda x: x[1])
-        print(self.inputs_list[0])
+  
         print(mode, len(self))
         self.data_aug = self.transform()
-        self.vids_list=os.listdir("/content/SlowFastSignISL/preprocess/ISLData/ISL")
-      
+        self.vids_list=os.listdir("/content/SlowFastSignISL/preprocess/ISLData/ISLVideos")
+        
         self.vids_list=sorted(self.vids_list)
-       
+        print(self.inputs_list[0],self.vids_list[0] )
 
     
 
         
     def __getitem__(self, idx):
         if self.data_type == "video":
+            print("idx", idx)
             input_data, label, fi = self.read_video(idx)
             input_data, label = self.normalize(input_data, label)
             # input_data, label = self.normalize(input_data, label, fi['fileid'])
-            return input_data, torch.LongTensor(label), self.inputs_list[idx]['original_info']
+            return input_data, torch.LongTensor(label)
         elif self.data_type == "lmdb":
             input_data, label, fi = self.read_lmdb(idx)
             input_data, label = self.normalize(input_data, label)
@@ -76,23 +79,15 @@ class BaseFeeder(data.Dataset):
     def conv_video_to_frame(self,video_path):
         video_capture = cv2.VideoCapture(video_path)
         success=True
-        base_options = python.BaseOptions(model_asset_path='pose_landmarker.task')
-        options = vision.PoseLandmarkerOptions(
-            base_options=base_options,
-            output_segmentation_masks=True)
-        detector = vision.PoseLandmarker.create_from_options(options)
-        annotated_frames=[]
+        frames=[]
         while success:
             success,frame = video_capture.read()
             if frame is not None:
-                frame = mp.Image(image_format=mp.ImageFormat.SRGB, data=frame)
-                detection_result = detector.detect(frame)
-                annotated_frame = draw_landmarks_on_image(frame.numpy_view(), detection_result)
-                annotated_frames.append(annotated_frame)
+                frames.append(frame)
             
             video_capture.release()
-            cv2.destroyAllWindows()
-        return annotated_frames
+        cv2.destroyAllWindows()
+        return frames
     
     def read_video(self, index):
         # load file info
@@ -106,14 +101,17 @@ class BaseFeeder(data.Dataset):
         elif self.dataset == 'ISL':
             img_list=[]
             video_file=self.vids_list[index]
-            img_list.append(self.conv_video_to_frame(os.path.join("SlowFastSignISL/preprocess/ISL", video_file)))
-            img_list = img_list[int(torch.randint(0, self.frame_interval, [1]))::self.frame_interval]
+            print(video_file)
+            img_list = self.conv_video_to_frame("/content/SlowFastSignISL/preprocess/ISLData/ISLVideos/"+ video_file)
+            print(img_list[0].shape)
+            selected_frames=[]
+            for i in range(0, len(img_list[0]), self.frame_interval):
+              selected_frames.append(img_list[0][i])
             
             transl=fi[2]
             label_list=[self.d[word] for word in transl.split(" ")]
-            print(label_list, transl)
 
-            return [cv2.cvtColor(cv2.resize(cv2.imread(img_path)[40:, ...], (256, 256)), cv2.COLOR_BGR2RGB) for img_path in img_list], label_list, fi
+            return [cv2.cvtColor(cv2.resize(frames[40:, ...], (256, 256)), cv2.COLOR_BGR2RGB) for frames in selected_frames], label_list, fi
 
         img_list = sorted(glob.glob(img_folder))
         img_list = img_list[int(torch.randint(0, self.frame_interval, [1]))::self.frame_interval]
@@ -176,7 +174,7 @@ class BaseFeeder(data.Dataset):
     @staticmethod
     def collate_fn(batch):
         batch = [item for item in sorted(batch, key=lambda x: len(x[0]), reverse=True)]
-        video, label, info = list(zip(*batch))
+        video, label  = list(zip(*batch))
         
         left_pad = 0
         last_stride = 1
@@ -216,13 +214,13 @@ class BaseFeeder(data.Dataset):
             padded_video = torch.stack(padded_video).permute(0, 2, 1)
         label_length = torch.LongTensor([len(lab) for lab in label])
         if max(label_length) == 0:
-            return padded_video, video_length, [], [], info
+            return padded_video, video_length, [], []
         else:
             padded_label = []
             for lab in label:
                 padded_label.extend(lab)
             padded_label = torch.LongTensor(padded_label)
-            return padded_video, video_length, padded_label, label_length, info
+            return padded_video, video_length, padded_label, label_length
 
     def __len__(self):
         return len(self.inputs_list) - 1
@@ -243,6 +241,7 @@ def labels_to_d(csv):
         count=0
         for label in df['text']:
             words=label.split(" ")
+         
             for word in words:
                 if word not in d.keys():
                     d[word] = count
@@ -251,7 +250,7 @@ def labels_to_d(csv):
 def main():
     gloss_dict=labels_to_d("/content/SlowFastSignISL/preprocess/ISLData/ISLCleaned.csv")
     #gloss_dict = np.load('/content/SlowFastSignISL/preprocess/phoenix2014/gloss_dict.npy', allow_pickle=True).item()
-    #print(gloss_dict)
+    print(len(gloss_dict))
     feeder = BaseFeeder(
         prefix='./dataset/phoenix2014/phoenix-2014-multisigner',
         gloss_dict=gloss_dict,
