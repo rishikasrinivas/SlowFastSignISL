@@ -105,7 +105,9 @@ class BaseFeeder(data.Dataset):
             print(video_file)
             img_list = self.conv_video_to_frame("/content/SlowFastSignISL/preprocess/ISLData/ISLVideos/"+ video_file)
             if len(img_list) == 0:
-              print(video_file)
+              print("INVALid ", video_file)
+              return [], [], []
+               
             selected_frames=[]
             for i in range(0, len(img_list[0]), self.frame_interval):
               selected_frames.append(img_list[0][i])
