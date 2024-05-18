@@ -23,9 +23,12 @@ def seq_train(loader, model, optimizer, device, epoch_idx, recoder):
         vid_lgt = device.data_to_device(data[1])
         label = device.data_to_device(data[2])
         label_lgt = device.data_to_device(data[3])
+        print(vid.shape,vid_lgt.shape,label.shape)
         optimizer.zero_grad()
         with autocast():
             ret_dict = model(vid, vid_lgt, label=label, label_lgt=label_lgt)
+            print("Mofel out: ", ret_dict['conv_logits'][0].shape)
+            print("Lab", label)
             loss = model.criterion_calculation(ret_dict, label, label_lgt)
         if np.isinf(loss.item()) or np.isnan(loss.item()):
             print('loss is nan')
