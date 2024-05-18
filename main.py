@@ -39,9 +39,9 @@ class Processor():
         if not self.arg.work_dir.endswith('/'):
             self.arg.work_dir = self.arg.work_dir + '/'
         shutil.copy2(__file__, self.arg.work_dir)
-        shutil.copy2('./configs/baseline.yaml', self.arg.work_dir)
-        copy_tree('slowfast_modules', self.arg.work_dir + 'slowfast_modules')
-        copy_tree('modules', self.arg.work_dir + 'modules')
+        shutil.copy2('/content/SlowFastSignISL/configs/baseline.yaml', self.arg.work_dir)
+        copy_tree('/content/SlowFastSignISL/slowfast_modules', self.arg.work_dir + 'slowfast_modules')
+        copy_tree('/content/SlowFastSignISL/modules', self.arg.work_dir + 'modules')
         self.recoder = utils.Recorder(self.arg.work_dir, self.arg.print_log, self.arg.log_interval)
         if self.arg.load_checkpoints or self.arg.load_weights:
             self.load_slowfast_pkl = False
@@ -54,18 +54,24 @@ class Processor():
         self.recoder = utils.Recorder(self.arg.work_dir, self.arg.print_log, self.arg.log_interval)
         self.dataset = {}
         self.data_loader = {}
-        self.gloss_dict = np.load(self.arg.dataset_info['dict_path'], allow_pickle=True).item()
+        self.gloss_dict = np.load("/content/SlowFastSignISL/preprocess/ISLData/ISLdata.npy", allow_pickle=True)
+        d={}
+        for i in self.gloss_dict:
+            d[i[2]] = i[3]
+        self.gloss_dict=d
         self.arg.model_args['num_classes'] = len(self.gloss_dict) + 1
         self.arg.optimizer_args['num_epoch'] = self.arg.num_epoch
         slowfast_args=[]
         for key, value in self.arg.slowfast_args.items():
             slowfast_args.append(key)
             slowfast_args.append(value)
+      
         self.arg.slowfast_args = slowfast_args
         self.model, self.optimizer = self.loading()
 
     def start(self):
         if self.arg.phase == 'train':
+            print("training")
             best_dev = 100.0
             best_avg = 100.0
             best_epoch = self.arg.optimizer_args['start_epoch'] - 1
@@ -219,17 +225,20 @@ class Processor():
 
     def load_data(self):
         print("Loading data")
+        print("before for ")
         self.feeder = import_class(self.arg.feeder)
         shutil.copy2(inspect.getfile(self.feeder), self.arg.work_dir)
-        if self.arg.dataset == 'CSL':
+        if self.arg.dataset == 'CSL' or self.arg.dataset == 'ISL':
             dataset_list = zip(["train", "dev"], [True, False])
         elif 'phoenix' in self.arg.dataset:
             dataset_list = zip(["train", "train_eval", "dev", "test"], [True, False, False, False]) 
         elif self.arg.dataset == 'CSL-Daily':
             dataset_list = zip(["train", "train_eval", "dev", "test"], [True, False, False, False])
+        
         for idx, (mode, train_flag) in enumerate(dataset_list):
+            print("in for")
             arg = self.arg.feeder_args
-            arg["prefix"] = self.arg.dataset_info['dataset_root']
+            arg["prefix"] = "/content/SlowFastSignISL/preprocess/ISLData/ISLVideos"
             arg["mode"] = mode.split("_")[0]
             arg["transform_mode"] = train_flag
             self.dataset[mode] = self.feeder(gloss_dict=self.gloss_dict, kernel_size= self.kernel_sizes, dataset=self.arg.dataset, **arg)
@@ -261,7 +270,8 @@ def import_class(name):
 if __name__ == '__main__':
     sparser = utils.get_parser()
     p = sparser.parse_args()
-    # p.config = "baseline_iter.yaml"
+    p.config = f"/content/SlowFastSignISL/configs/baseline.yaml"
+    print(p)
     if p.config is not None:
         with open(p.config, 'r') as f:
             try:
@@ -275,8 +285,12 @@ if __name__ == '__main__':
                 assert (k in key)
         sparser.set_defaults(**default_arg)
     args = sparser.parse_args()
-    with open(f"./configs/{args.dataset}.yaml", 'r') as f:
+    
+    with open(p.config, 'r') as f:
         args.dataset_info = yaml.load(f, Loader=yaml.FullLoader)
+  
+    args.config=p.config
     processor = Processor(args)
     #utils.pack_code("./", args.work_dir)
+    print("start")
     processor.start()
