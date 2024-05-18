@@ -311,13 +311,13 @@ def slowfast50(slowfast_config='SLOWFAST_8x8_R50.yaml', slowfast_args=[], load_p
     return model
 
 def slowfast101(slowfast_config='SLOWFAST_64x2_R101_50_50.yaml', slowfast_args=[], load_pkl=True, multi=False):
-    cfg = yaml.load(open('slowfast_modules/configs/' + slowfast_config, 'r'), Loader=yaml.FullLoader)
+    cfg = yaml.load(open('/content/SlowFastSignISL/slowfast_modules/configs/' + slowfast_config, 'r'), Loader=yaml.FullLoader)
     cfg = CfgNode(cfg)
     if len(slowfast_args) > 0:
         cfg.merge_from_list(slowfast_args)
     model = SlowFast(cfg, multi)
     if load_pkl:
-        load_checkpoint('ckpt/SLOWFAST_64x2_R101_50_50.pkl', model)
+        load_checkpoint('/content/SLOWFAST_64x2_R101_50_50.pkl', model)
     return model
 
 def test():
