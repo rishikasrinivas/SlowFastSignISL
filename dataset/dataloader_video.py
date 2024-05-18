@@ -65,7 +65,6 @@ class BaseFeeder(data.Dataset):
             print("idx", idx)
             input_data, label, fi = self.read_video(idx)
             input_data, label = self.normalize(input_data, label)
-            # input_data, label = self.normalize(input_data, label, fi['fileid'])
             return input_data, torch.LongTensor(label)
         elif self.data_type == "lmdb":
             input_data, label, fi = self.read_lmdb(idx)
@@ -112,7 +111,7 @@ class BaseFeeder(data.Dataset):
             for i in range(0, len(img_list[0]), self.frame_interval):
               selected_frames.append(img_list[0][i])
             
-            transl=fi[2]
+            transl=fi[-1]
             label_list=[self.d[word] for word in transl.split(" ")]
 
             return [cv2.cvtColor(cv2.resize(frames[40:, ...], (256, 256)), cv2.COLOR_BGR2RGB) for frames in selected_frames], label_list, fi
@@ -193,7 +192,8 @@ class BaseFeeder(data.Dataset):
                 total_stride = total_stride * last_stride
         if len(video[0].shape) > 3:
             max_len = len(video[0])
-            video_length = torch.LongTensor([np.ceil(len(vid) / total_stride) * total_stride + 2*left_pad for vid in video])
+            print("max ken ", max_len)
+            video_length = torch.LongTensor([int(np.ceil(len(vid) / total_stride)) * total_stride + 2*left_pad for vid in video])
             right_pad = int(np.ceil(max_len / total_stride)) * total_stride - max_len + left_pad
             max_len = max_len + left_pad + right_pad
             padded_video = [torch.cat(
@@ -272,6 +272,5 @@ def main():
         collate_fn=feeder.collate_fn,
     )
     for i,data in enumerate(dataloader):
-        print(i)
-        #pdb.set_trace()
+        pdb.set_trace()
 main()
