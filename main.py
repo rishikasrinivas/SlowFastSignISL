@@ -54,22 +54,24 @@ class Processor():
         self.recoder = utils.Recorder(self.arg.work_dir, self.arg.print_log, self.arg.log_interval)
         self.dataset = {}
         self.data_loader = {}
-        self.gloss_dict = np.load("/content/SlowFastSignISL/preprocess/ISLData/ISLdata.npy", allow_pickle=True)
+        self.gloss_dictionary = np.load("/content/SlowFastSignISL/preprocess/ISLData/ISLdata.npy", allow_pickle=True)
         d={}
-        for i in self.gloss_dict:
+        for i in self.gloss_dictionary:
             d[i[2]] = i[3]
-        self.gloss_dict=d
-        self.arg.model_args['num_classes'] = len(self.gloss_dict) + 1
+        self.gloss_dictionary=d
+        self.arg.model_args['num_classes'] = len(self.gloss_dictionary) + 1
         self.arg.optimizer_args['num_epoch'] = self.arg.num_epoch
         slowfast_args=[]
         for key, value in self.arg.slowfast_args.items():
             slowfast_args.append(key)
             slowfast_args.append(value)
+      
         self.arg.slowfast_args = slowfast_args
         self.model, self.optimizer = self.loading()
 
     def start(self):
         if self.arg.phase == 'train':
+            print("training")
             best_dev = 100.0
             best_avg = 100.0
             best_epoch = self.arg.optimizer_args['start_epoch'] - 1
@@ -155,7 +157,7 @@ class Processor():
         model_class = import_class(self.arg.model)
         model = model_class(
             **self.arg.model_args,
-            gloss_dict=self.gloss_dict,
+            gloss_dict=self.gloss_dictionary,
             loss_weights=self.arg.loss_weights,
             load_pkl=self.load_slowfast_pkl,
             slowfast_config=self.arg.slowfast_config,
@@ -223,20 +225,23 @@ class Processor():
 
     def load_data(self):
         print("Loading data")
+        print("before for ")
         self.feeder = import_class(self.arg.feeder)
         shutil.copy2(inspect.getfile(self.feeder), self.arg.work_dir)
-        if self.arg.dataset == 'CSL':
+        if self.arg.dataset == 'CSL' or self.arg.dataset == 'ISL':
             dataset_list = zip(["train", "dev"], [True, False])
         elif 'phoenix' in self.arg.dataset:
             dataset_list = zip(["train", "train_eval", "dev", "test"], [True, False, False, False]) 
         elif self.arg.dataset == 'CSL-Daily':
             dataset_list = zip(["train", "train_eval", "dev", "test"], [True, False, False, False])
+        
         for idx, (mode, train_flag) in enumerate(dataset_list):
+            print("in for")
             arg = self.arg.feeder_args
-            arg["prefix"] = self.arg.dataset_info['dataset_root']
+            arg["prefix"] = "/content/SlowFastSignISL/preprocess/ISLData/ISLVideos"
             arg["mode"] = mode.split("_")[0]
             arg["transform_mode"] = train_flag
-            self.dataset[mode] = self.feeder(gloss_dict=self.gloss_dict, kernel_size= self.kernel_sizes, dataset=self.arg.dataset, **arg)
+            self.dataset[mode] = self.feeder(gloss_dict=self.gloss_dictionary, kernel_size= self.kernel_sizes, dataset=self.arg.dataset, **arg)
             self.data_loader[mode] = self.build_dataloader(self.dataset[mode], mode, train_flag)
         print("Loading data finished.")
     def init_fn(self, worker_id):
@@ -283,8 +288,9 @@ if __name__ == '__main__':
     
     with open(p.config, 'r') as f:
         args.dataset_info = yaml.load(f, Loader=yaml.FullLoader)
-    print(args)
+  
     args.config=p.config
     processor = Processor(args)
     #utils.pack_code("./", args.work_dir)
+    print("start")
     processor.start()
