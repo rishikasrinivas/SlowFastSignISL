@@ -39,9 +39,9 @@ class Processor():
         if not self.arg.work_dir.endswith('/'):
             self.arg.work_dir = self.arg.work_dir + '/'
         shutil.copy2(__file__, self.arg.work_dir)
-        shutil.copy2('./configs/baseline.yaml', self.arg.work_dir)
-        copy_tree('slowfast_modules', self.arg.work_dir + 'slowfast_modules')
-        copy_tree('modules', self.arg.work_dir + 'modules')
+        shutil.copy2('/content/SlowFastSignISL/configs/baseline.yaml', self.arg.work_dir)
+        copy_tree('/content/SlowFastSignISL/slowfast_modules', self.arg.work_dir + 'slowfast_modules')
+        copy_tree('/content/SlowFastSignISL/modules', self.arg.work_dir + 'modules')
         self.recoder = utils.Recorder(self.arg.work_dir, self.arg.print_log, self.arg.log_interval)
         if self.arg.load_checkpoints or self.arg.load_weights:
             self.load_slowfast_pkl = False
@@ -54,7 +54,11 @@ class Processor():
         self.recoder = utils.Recorder(self.arg.work_dir, self.arg.print_log, self.arg.log_interval)
         self.dataset = {}
         self.data_loader = {}
-        self.gloss_dict = np.load(self.arg.dataset_info['dict_path'], allow_pickle=True).item()
+        self.gloss_dict = np.load("/content/SlowFastSignISL/preprocess/ISLData/ISLdata.npy", allow_pickle=True)
+        d={}
+        for i in self.gloss_dict:
+            d[i[2]] = i[3]
+        self.gloss_dict=d
         self.arg.model_args['num_classes'] = len(self.gloss_dict) + 1
         self.arg.optimizer_args['num_epoch'] = self.arg.num_epoch
         slowfast_args=[]
