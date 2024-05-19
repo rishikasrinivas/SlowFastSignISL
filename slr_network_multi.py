@@ -112,6 +112,7 @@ class SLRModel(nn.Module):
     def criterion_calculation(self, ret_dict, label, label_lgt):
         loss = 0
         for k, weight in self.loss_weights.items():
+            print("k is ", k, " weight is ", self.loss_weights['SeqCTC'])
             if k == 'SeqCTC':
                 loss += weight * self.loss['CTCLoss'](ret_dict["sequence_logits"][0].log_softmax(-1),
                                                       label.cpu().int(), ret_dict["feat_len"].cpu().int(),
@@ -121,6 +122,9 @@ class SLRModel(nn.Module):
                 loss += weight * self.loss_weights['SeqCTC'] * self.loss['CTCLoss'](ret_dict["sequence_logits"][i].log_softmax(-1),
                                                                                 label.cpu().int(), ret_dict["feat_len"].cpu().int(),
                                                                                 label_lgt.cpu().int()).mean()
+                print("gt loss ", self.loss['CTCLoss'](ret_dict["sequence_logits"][i].log_softmax(-1),
+                                                                                label.cpu().int(), ret_dict["feat_len"].cpu().int(),
+                                                                                label_lgt.cpu().int()).mean())
                 if 'ConvCTC' in self.loss_weights:
                     loss += weight * self.loss_weights['ConvCTC'] * self.loss['CTCLoss'](ret_dict["conv_logits"][i].log_softmax(-1),
                                                                                         label.cpu().int(), ret_dict["feat_len"].cpu().int(),
