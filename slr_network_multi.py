@@ -80,6 +80,7 @@ class SLRModel(nn.Module):
         return x
 
     def forward(self, x, len_x, label=None, label_lgt=None):
+        print("forwarding shape ", x.shape)
         if len(x.shape) == 5:
             framewise = self.conv2d(x.permute(0,2,1,3,4))
         else:
