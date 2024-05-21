@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 class Decode(object):
     def __init__(self, gloss_dict, num_classes, search_mode, blank_id=0):
-        self.i2g_dict = dict((v[0], k) for k, v in gloss_dict.items())
+        self.i2g_dict = dict((v, k) for k, v in gloss_dict.items())
         self.g2i_dict = {v: k for k, v in self.i2g_dict.items()}
         self.num_classes = num_classes
         self.search_mode = search_mode
