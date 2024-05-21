@@ -98,7 +98,7 @@ class SLRModel(nn.Module):
             else self.decoder.decode(outputs[0], lgt, batch_first=False, probs=False)
         conv_pred = None if self.training \
             else self.decoder.decode(conv1d_outputs['conv_logits'][0], lgt, batch_first=False, probs=False)
-
+        print("Out put shape ",len(outputs), outputs )
         return {
             #"framewise_features": framewise,
             #"visual_features": conv1d_outputs['visual_feat'],
@@ -116,6 +116,9 @@ class SLRModel(nn.Module):
                 loss += weight * self.loss['CTCLoss'](ret_dict["sequence_logits"][0].log_softmax(-1),
                                                       label.cpu().int(), ret_dict["feat_len"].cpu().int(),
                                                       label_lgt.cpu().int()).mean()
+                print("main ", self.loss['CTCLoss'](ret_dict["sequence_logits"][0].log_softmax(-1),
+                                                      label.cpu().int(), ret_dict["feat_len"].cpu().int(),
+                                                      label_lgt.cpu().int()).mean())
             elif k == 'Slow' or k == 'Fast':
                 i = 1 if k == 'Slow' else 2
                 loss += weight * self.loss_weights['SeqCTC'] * self.loss['CTCLoss'](ret_dict["sequence_logits"][i].log_softmax(-1),
