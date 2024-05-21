@@ -54,12 +54,10 @@ class Processor():
         self.recoder = utils.Recorder(self.arg.work_dir, self.arg.print_log, self.arg.log_interval)
         self.dataset = {}
         self.data_loader = {}
-        self.gloss_dictionary = np.load("/content/SlowFastSignISL/preprocess/ISLData/ISLdata.npy", allow_pickle=True)
-        d={}
-        for i in self.gloss_dictionary:
-            d[i[2]] = i[3]
-        self.gloss_dictionary=d
-        self.arg.model_args['num_classes'] = len(self.gloss_dictionary) + 1
+        self.gloss_dictionary = np.load("/content/SlowFastSignISL/gloss_dict.npy", allow_pickle=True)
+        self.gloss_dictionary = dict(self.gloss_dictionary.tolist())
+       
+        self.arg.model_args['num_classes'] = len(self.gloss_dictionary.keys()) + 1
         self.arg.optimizer_args['num_epoch'] = self.arg.num_epoch
         slowfast_args=[]
         for key, value in self.arg.slowfast_args.items():
