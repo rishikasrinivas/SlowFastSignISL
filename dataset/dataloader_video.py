@@ -51,7 +51,7 @@ class BaseFeeder(data.Dataset):
     
         self.inputs_list=sorted(self.inputs_list, key=lambda x: x[1])
   
-        print(mode, len(self))
+        print("Inp list " ,self.inputs_list, len(self))
         self.data_aug = self.transform()
         self.vids_list=os.listdir("/content/SlowFastSignISL/preprocess/ISLData/ISLVideos")
         
@@ -324,7 +324,7 @@ class BaseFeeder(data.Dataset):
         #self.gloss_diction =gloss_dict
         self.inputs_list=sorted(self.inputs_list, key=lambda x: x[1])
         assert 'passed' in self.gloss_diction.keys()
-        print(mode, len(self))
+  
         self.data_aug = self.transform()
         self.vids_list=os.listdir("/content/SlowFastSignISL/preprocess/ISLData/ISLVideos")
         
@@ -373,7 +373,7 @@ class BaseFeeder(data.Dataset):
         elif self.dataset == 'CSL-Daily':
             img_folder = os.path.join(self.prefix, fi['folder'])
         elif self.dataset == 'ISL':
-            img_list=[]
+           
             video_file=self.vids_list[index]
             print(video_file)
             img_list = self.conv_video_to_frame("/content/SlowFastSignISL/preprocess/ISLData/ISLVideos/"+ video_file)
@@ -382,8 +382,9 @@ class BaseFeeder(data.Dataset):
               return [], [], []
                
             selected_frames=[]
-            for i in range(0, len(img_list[0]), self.frame_interval):
-              selected_frames.append(img_list[0][i])
+            for i in range(0, len(img_list), self.frame_interval):
+              selected_frames.append(img_list[i])
+              print("INitial frame shape ", selected_frames[-1].shape)
             
             transl=fi[-1]
             print(transl)
@@ -392,8 +393,9 @@ class BaseFeeder(data.Dataset):
             label_list=[]
             for word in transl.split(" "):
                 label_list.append(self.gloss_diction[word.lower()])
-
-            return [cv2.cvtColor(cv2.resize(frames[40:, ...], (256, 256)), cv2.COLOR_BGR2RGB) for frames in selected_frames], label_list, fi
+            condensed_frames =[cv2.cvtColor(cv2.resize(frames[40:, ...], (224, 224)), cv2.COLOR_BGR2RGB) for frames in selected_frames]
+            print("condensed_frames[0] shape", condensed_frames[0].shape)
+            return condensed_frames, label_list, fi
 
         img_list = sorted(glob.glob(img_folder))
         img_list = img_list[int(torch.randint(0, self.frame_interval, [1]))::self.frame_interval]
