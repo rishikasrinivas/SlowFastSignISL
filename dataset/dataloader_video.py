@@ -109,13 +109,13 @@ class BaseFeeder(data.Dataset):
               return [], [], []
                
             selected_frames=[]
-            for i in range(0, len(img_list[0]), self.frame_interval):
-              selected_frames.append(img_list[0][i])
+            for i in range(0, len(img_list), self.frame_interval):
+              selected_frames.append(img_list[i])
             
             transl=fi[-1]
             label_list=[self.d[word] for word in transl.split(" ")]
 
-            return [cv2.cvtColor(cv2.resize(frames[40:, ...], (256, 256)), cv2.COLOR_BGR2RGB) for frames in selected_frames], label_list, fi
+            return [cv2.cvtColor(cv2.resize(frames[40:, ...], (224, 224)), cv2.COLOR_BGR2RGB) for frames in selected_frames], label_list, fi
 
         img_list = sorted(glob.glob(img_folder))
         img_list = img_list[int(torch.randint(0, self.frame_interval, [1]))::self.frame_interval]
