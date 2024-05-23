@@ -47,6 +47,7 @@ class Processor():
             self.load_slowfast_pkl = False
         else:
             self.load_slowfast_pkl = True
+        print("I will load the pkl? ", self.load_slowfast_pkl)
         self.save_arg()
         if self.arg.random_fix:
             self.rng = utils.RandomState(seed=self.arg.random_seed)
