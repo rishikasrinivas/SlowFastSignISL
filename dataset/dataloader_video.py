@@ -90,7 +90,7 @@ class BaseFeeder(data.Dataset):
         return frames
     
     def read_video(self, index):
-        # load file infos
+        # load file info
 
         fi = self.inputs_list[index] #fi=['0' 'GIx57eZ4R0M--0' 'Last Monday for Saturdays']
         if 'phoenix' in self.dataset:
