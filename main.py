@@ -59,12 +59,16 @@ class Processor():
        
         self.arg.model_args['num_classes'] = len(self.gloss_dictionary.keys()) + 1
         self.arg.optimizer_args['num_epoch'] = self.arg.num_epoch
+        self.arg.load_checkpoint_weights=True
+        self.arg.load_model_weights=True
+        self.arg.dataset_info['dataset']='ISL'
         slowfast_args=[]
         for key, value in self.arg.slowfast_args.items():
             slowfast_args.append(key)
             slowfast_args.append(value)
       
         self.arg.slowfast_args = slowfast_args
+        print("slowfast args ", self.arg.slowfast_args)
         self.model, self.optimizer = self.loading()
 
     def start(self):
@@ -82,6 +86,7 @@ class Processor():
                 eval_model = epoch % self.arg.eval_interval == 0
                 epoch_time = time.time()
                 # train end2end model
+               
                 seq_train(self.data_loader['train'], self.model, self.optimizer,
                           self.device, epoch, self.recoder)
                 if eval_model:
@@ -185,6 +190,7 @@ class Processor():
 
     def load_model_weights(self, model, weight_path):
         state_dict = torch.load(weight_path)
+        print("LOadewd ")
         if len(self.arg.ignore_weights):
             for w in self.arg.ignore_weights:
                 if state_dict.pop(w, None) is not None:
@@ -206,7 +212,7 @@ class Processor():
     def load_checkpoint_weights(self, model, optimizer):
         self.load_model_weights(model, self.arg.load_checkpoints)
         state_dict = torch.load(self.arg.load_checkpoints)
-
+        print("LOadewd ")
         if len(torch.cuda.get_rng_state_all()) == len(state_dict['rng_state']['cuda']):
             print("Loading random seeds...")
             self.rng.set_rng_state(state_dict['rng_state'])
